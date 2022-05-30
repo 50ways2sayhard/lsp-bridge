@@ -638,7 +638,7 @@ Auto completion is only performed if the tick did not change."
      (lambda (candidate status)
        ;; Only expand candidate when status is `finished'.
        ;; Otherwise we execute command `backward-delete-char-untabify' will cause candidate expand.
-       (when (memq status '(finished))
+       (when (memq status '(finished exact))
          ;; Because lsp-bridge will push new candidates when company/lsp-bridge-ui completing.
          ;; We need extract newest candidates when insert, avoid insert old candidate content.
          (let* ((candidate-index (cl-find candidate candidates :test #'string=)))
@@ -647,8 +647,8 @@ Auto completion is only performed if the tick did not change."
                                   (current-buffer))
              (cond
               ;; Don't expand candidate if the user enters all characters manually.
-              ((and (member candidate candidates)
-                    (eq this-command 'self-insert-command)))
+              ;; ((and (member candidate candidates)
+              ;;       (eq this-command 'self-insert-command)))
               ;; Just insert candidate if it has expired.
               ((null candidate-index))
               (t
@@ -1051,7 +1051,6 @@ If optional MARKER, return a marker instead"
 
     (setq-local corfu-auto-prefix 0)
     (setq-local corfu-auto nil)
-    (setq-local corfu-preview-current nil)
 
     (remove-hook 'post-command-hook #'corfu--auto-post-command 'local)
 
@@ -1211,8 +1210,8 @@ If optional MARKER, return a marker instead"
         (if (corfu-doc--should-refresh-popup candidate)
             (corfu-doc--refresh-popup)
           (corfu-doc--update-popup documentation)
-          (with-current-buffer (get-buffer-create " *corfu-doc*")
-            (lsp-bridge-render-markdown-content))
+          ;; (with-current-buffer (get-buffer-create " *corfu-doc*")
+          ;;   (lsp-bridge-render-markdown-content))
           (corfu-doc--set-vars
            candidate cf-popup-edges (selected-window))
           )))))

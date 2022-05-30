@@ -248,7 +248,8 @@ class LspServer:
 
         merge_capabilites = merge(server_capabilities, {
             "workspace": {
-                "configuration": True
+                "configuration": True,
+                "applyEdit": True,
             },
             "textDocument": {
                 "completion": {
@@ -300,7 +301,7 @@ class LspServer:
                 "uri": path_to_uri(filepath),
             }
         })
-        
+
     def send_did_rename_files_notification(self, old_filepath, new_filepath):
         self.sender.send_notification("workspace/renameFiles", {
             "files": [{
@@ -352,13 +353,13 @@ class LspServer:
         }
 
     def handle_workspace_configuration_request(self, name, request_id, params):
-        settings = self.server_info.get("settings", {})            
-        
+        settings = self.server_info.get("settings", {})
+
         # We send empty message back to server if nothing in 'settings' of server.json file.
         if len(settings) == 0:
             self.sender.send_response(request_id, [])
             return
-        
+
         # Otherwise, send back section value or default settings.
         items = []
         for p in params["items"]:
@@ -370,9 +371,9 @@ class LspServer:
         if "error" in message:
             logger.error("\n--- Recv message (error):")
             logger.error(json.dumps(message, indent=3))
-            
+
             message_emacs(message["error"]["message"])
-            
+
             return
 
         if "id" in message:
@@ -399,7 +400,7 @@ class LspServer:
             if is_in_path_dict(self.files, filepath):
                 file_action = get_from_path_dict(self.files, filepath)
                 file_action.diagnostics = message["params"]["diagnostics"]
-        
+
         logger.debug(json.dumps(message, indent=3))
 
         if "id" in message:
