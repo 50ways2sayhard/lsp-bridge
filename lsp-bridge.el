@@ -146,7 +146,7 @@ Setting this to nil or 0 will turn off the indicator."
   :type 'integer
   :group 'lsp-bridge)
 
-(defcustom lsp-bridge-enable-auto-import nil
+(defcustom lsp-bridge-enable-auto-import t
   "Whether to enable auto-import."
   :type 'boolean
   :group 'lsp-bridge)
@@ -484,6 +484,7 @@ Auto completion is only performed if the tick did not change."
 (defvar-local lsp-bridge-completion-candidates nil)
 (defvar-local lsp-bridge-completion-server-name nil)
 (defvar-local lsp-bridge-completion-trigger-characters nil)
+(defvar-local lsp-bridge-completion-resolve-provider nil)
 (defvar-local lsp-bridge-completion-prefix nil)
 (defvar-local lsp-bridge-completion-common nil)
 (defvar-local lsp-bridge-completion-position nil)
@@ -528,13 +529,18 @@ Auto completion is only performed if the tick did not change."
 (defun lsp-bridge-get-candidate-item (label)
   (gethash label lsp-bridge-completion-candidates))
 
-(defun lsp-bridge-record-completion-items (filepath common items position server-name completion-trigger-characters)
+(defun lsp-bridge-record-completion-items (filepath
+                                           common items position
+                                           server-name
+                                           completion-trigger-characters
+                                           completion-resolve-provider)
   (lsp-bridge--with-file-buffer filepath
     ;; Save completion items.
     (setq-local lsp-bridge-completion-common common)
     (setq-local lsp-bridge-completion-position position)
     (setq-local lsp-bridge-completion-server-name server-name)
     (setq-local lsp-bridge-completion-trigger-characters completion-trigger-characters)
+    (setq-local lsp-bridge-completion-resolve-provider completion-resolve-provider)
 
     (setq-local lsp-bridge-completion-candidates (make-hash-table :test 'equal))
     (dolist (item items)
@@ -671,8 +677,24 @@ Auto completion is only performed if the tick did not change."
                       (delete-end-pos (+ (point) (- range-end-pos completion-start-pos)))
                       (insert-candidate (or new-text insert-text label)))
 
-                 ;; Insert candidate or expand snippet.
+                 ;; Move bound start position forward one character, if the following situation is satisfied:
+                 ;; 1. `textEdit' is not exist
+                 ;; 2. bound-start character is `lsp-bridge-completion-trigger-characters'
+                 ;; 3. `label' start with bound-start character
+                 ;; 4. `insertText' is not start with bound-start character
+                 (unless text-edit
+                   (let* ((bound-start-char (save-excursion
+                                              (goto-char delete-start-pos)
+                                              (char-to-string (char-after)))))
+                     (when (and (member bound-start-char lsp-bridge-completion-trigger-characters)
+                                (string-prefix-p bound-start-char label)
+                                (not (string-prefix-p bound-start-char insert-text)))
+                       (setq delete-start-pos (1+ delete-start-pos)))))
+
+                 ;; Delete region.
                  (delete-region delete-start-pos delete-end-pos)
+
+                 ;; Insert candidate or expand snippet.
                  (funcall (or snippet-fn #'insert) insert-candidate)
 
                  ;; Do `additionalTextEdits' if return auto-imprt information.
@@ -1260,7 +1282,8 @@ If optional MARKER, return a marker instead"
 
 (defun lsp-bridge--monitor-candidate-select-advisor (&rest args)
   (when (and lsp-bridge-mode
-             lsp-bridge-enable-candidate-doc-preview)
+             lsp-bridge-enable-candidate-doc-preview
+             lsp-bridge-completion-resolve-provider)
     (lsp-bridge-completion-item-fetch (nth corfu--index corfu--candidates))))
 (advice-add #'corfu--goto :after #'lsp-bridge--monitor-candidate-select-advisor)
 (advice-add #'corfu--popup-show :after #'lsp-bridge--monitor-candidate-select-advisor)
