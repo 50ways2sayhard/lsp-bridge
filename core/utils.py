@@ -201,10 +201,8 @@ def get_from_path_dict(path_dict, filepath):
 def get_project_path(filepath):
     import os
     dir_path = os.path.dirname(filepath)
-    if get_command_result("git rev-parse --is-inside-work-tree", dir_path) == "true":
-        return get_command_result("git rev-parse --show-toplevel", dir_path)
-    else:
-        return filepath
+    project_path = get_emacs_func_result("get-project-root", dir_path)
+    return project_path or filepath
 
 
 @functools.lru_cache(maxsize=None)

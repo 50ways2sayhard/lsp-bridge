@@ -166,7 +166,7 @@ Setting this to nil or 0 will turn off the indicator."
   :type 'boolean
   :group 'lsp-bridge)
 
-(defcustom lsp-bridge-enable-diagnostics nil
+(defcustom lsp-bridge-enable-diagnostics t
   "Whether to enable diagnostics."
   :type 'boolean
   :group 'lsp-bridge)
@@ -205,6 +205,7 @@ Start discarding off end if gets this big."
                (lsp-bridge-epc-define-method mngr 'get-lang-server 'lsp-bridge--get-lang-server-func)
                (lsp-bridge-epc-define-method mngr 'get-emacs-version 'emacs-version)
                (lsp-bridge-epc-define-method mngr 'is-snippet-support 'lsp-bridge--snippet-expansion-fn)
+               (lsp-bridge-epc-define-method mngr 'get-project-root 'lsp-bridge-project-root)
                ))))
     (if lsp-bridge-server
         (setq lsp-bridge-server-port (process-contact lsp-bridge-server :service))
@@ -1246,6 +1247,9 @@ If optional MARKER, return a marker instead"
           (corfu-doc--set-vars
            candidate cf-popup-edges (selected-window))
           ))))
+  ;;  TODO: I will get errors like:
+  ;; ERROR:epc:(return 74 ...): Got too many arguments in the reply: [Symbol('#<window'), 3, Symbol('on'), Symbol('main.py>')]
+  ;; which may be from the last command in `corfu-doc--set-vars'. A `nil' value fixes it but I don't know why.
   nil)
 
 (defun lsp-bridge-render-markdown-content ()
@@ -1253,6 +1257,7 @@ If optional MARKER, return a marker instead"
     (if (fboundp 'gfm-view-mode)
         (gfm-view-mode)
       (gfm-mode)))
+  (setq-local mode-line-format nil) ;; Hide mode-line for corfu-doc buffer.
   (display-line-numbers-mode -1)
   (read-only-mode 0)
   (font-lock-ensure))
@@ -1293,7 +1298,7 @@ If optional MARKER, return a marker instead"
              lsp-bridge-enable-candidate-doc-preview
              lsp-bridge-completion-resolve-provider
              (not (null lsp-bridge-completion-candidates))
-             (member (nth corfu--index corfu--candidates) (hash-table-keys lsp-bridge-completion-candidates)))
+             (member (nth corfu--index corfu--candidates) (hash-table-keys lsp-bridge-completion-candidates))) ;; Check whether current candidate comes from lsp-bridge
     (lsp-bridge-completion-item-fetch (nth corfu--index corfu--candidates))))
 (advice-add #'corfu--goto :after #'lsp-bridge--monitor-candidate-select-advisor)
 (advice-add #'corfu--popup-show :after #'lsp-bridge--monitor-candidate-select-advisor)
@@ -1355,6 +1360,14 @@ If optional MARKER, return a marker instead"
 (with-eval-after-load 'org
   (dolist (lang lsp-bridge-org-babel-lang-list)
     (eval `(lsp-org-babel-enable ,lang))))
+
+(defun lsp-bridge-project-root (&optional dir)
+  "Return the project root of DIR."
+  (when-let* ((default-directory (or dir default-directory))
+              (project (project-current)))
+    (expand-file-name (if (fboundp 'project-root)
+                          (project-root project)
+                        (cdr project)))))
 
 (provide 'lsp-bridge)
 
