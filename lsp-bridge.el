@@ -1245,7 +1245,8 @@ If optional MARKER, return a marker instead"
           ;;   (lsp-bridge-render-markdown-content))
           (corfu-doc--set-vars
            candidate cf-popup-edges (selected-window))
-          )))))
+          ))))
+  nil)
 
 (defun lsp-bridge-render-markdown-content ()
   (let ((inhibit-message t))
@@ -1290,7 +1291,9 @@ If optional MARKER, return a marker instead"
 (defun lsp-bridge--monitor-candidate-select-advisor (&rest args)
   (when (and lsp-bridge-mode
              lsp-bridge-enable-candidate-doc-preview
-             lsp-bridge-completion-resolve-provider)
+             lsp-bridge-completion-resolve-provider
+             (not (null lsp-bridge-completion-candidates))
+             (member (nth corfu--index corfu--candidates) (hash-table-keys lsp-bridge-completion-candidates)))
     (lsp-bridge-completion-item-fetch (nth corfu--index corfu--candidates))))
 (advice-add #'corfu--goto :after #'lsp-bridge--monitor-candidate-select-advisor)
 (advice-add #'corfu--popup-show :after #'lsp-bridge--monitor-candidate-select-advisor)
